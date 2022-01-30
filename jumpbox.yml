@@ -1,0 +1,58 @@
+Description: >
+    Udagram Jumpbox/2022
+
+Parameters:
+  EnvironmentName:
+      Description: An environment name that will be prefixed to resource names
+      Type: String
+
+Resources:
+  # *** Addition: Creating Bashion host and required security group ***
+  # Creating jumpbox security group only for my home IP address
+  JumpboxSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH from my home ip-address only
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 103.252.200.200/32
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+  # Creating Bastion host EC2 Instance
+  BastionHost: 
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0a8b4cd432b1c3063
+      KeyName: jumpbox-key
+      Tags: 
+        - Key: Name
+          Value: "Jumpbox"
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: JumpboxSecGroup
+          SubnetId:
+            Fn::ImportValue:
+              !Sub "${EnvironmentName}-PUB1-SN"
+
+Outputs:
+  JumpboxSecurityGroup:
+    Description: Secirity group for bastion host(jumpbox), restricted by my home ip-address
+    Value: !Ref JumpboxSecGroup
+    Export:
+      Name: !Sub ${EnvironmentName}-Jumpbox-SecGroup
+  BastionHost:
+    Description: Jumpbox to access from public subnet to private subnet
+    Value: !Ref BastionHost
+    Export:
+      Name: !Sub ${EnvironmentName}-Jumpbox
